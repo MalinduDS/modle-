@@ -1,0 +1,5 @@
+{
+  "name": "StyleShot AI",
+  "description": "An application for e-commerce fashion sellers to generate professional product photography. Users can upload a clothing item, describe a scene or a virtual model, and the AI generates a professional-looking product shot.",
+  "requestFramePermissions": []
+}
