@@ -10,3 +10,9 @@ export interface VirtualModel {
   description: string;
   thumbnail: string;
 }
+
+export interface LightingState {
+  brightness: number;
+  contrast: number;
+  warmth: number;
+}

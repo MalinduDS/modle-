@@ -4,7 +4,7 @@ import { Header } from './components/Header';
 import { ControlPanel } from './components/ControlPanel';
 import { ResultDisplay } from './components/ResultDisplay';
 import { generateStyledImage } from './services/geminiService';
-import { ExportOption, VirtualModel } from './types';
+import { ExportOption, VirtualModel, LightingState } from './types';
 
 const virtualModels: VirtualModel[] = [
   { id: 'arab-1', name: 'Layla', description: 'An elegant Arab model in her early twenties with striking features, exuding luxury and sophistication.', thumbnail: 'https://i.pravatar.cc/150?u=layla' },
@@ -30,13 +30,49 @@ function App() {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [brightness, setBrightness] = useState<number>(0);
-  const [contrast, setContrast] = useState<number>(0);
-  const [warmth, setWarmth] = useState<number>(0);
+  const initialLightingState: LightingState = { brightness: 0, contrast: 0, warmth: 0 };
+  const [lighting, setLighting] = useState<LightingState>(initialLightingState);
+  const [lightingHistory, setLightingHistory] = useState<LightingState[]>([initialLightingState]);
+  const [historyIndex, setHistoryIndex] = useState(0);
+
+  const canUndo = historyIndex > 0;
+  const canRedo = historyIndex < lightingHistory.length - 1;
+
+  const handleLightingChange = useCallback((newValues: Partial<LightingState>) => {
+    setLighting(prev => ({ ...prev, ...newValues }));
+  }, []);
+
+  const commitLightingChange = useCallback(() => {
+    // Only add to history if it's a new state from the current point in history
+    if (JSON.stringify(lighting) !== JSON.stringify(lightingHistory[historyIndex])) {
+      const newHistory = lightingHistory.slice(0, historyIndex + 1);
+      setLightingHistory([...newHistory, lighting]);
+      setHistoryIndex(newHistory.length);
+    }
+  }, [lighting, lightingHistory, historyIndex]);
+  
+  const handleUndo = useCallback(() => {
+    if (canUndo) {
+      const newIndex = historyIndex - 1;
+      setHistoryIndex(newIndex);
+      setLighting(lightingHistory[newIndex]);
+    }
+  }, [canUndo, historyIndex, lightingHistory]);
+
+  const handleRedo = useCallback(() => {
+    if (canRedo) {
+      const newIndex = historyIndex + 1;
+      setHistoryIndex(newIndex);
+      setLighting(lightingHistory[newIndex]);
+    }
+  }, [canRedo, historyIndex, lightingHistory]);
+
 
   const handleGenerate = useCallback(async () => {
     const selectedModel = virtualModels.find(m => m.id === selectedModelId);
     
+    const { brightness, contrast, warmth } = lighting;
+
     let lightingPrompt = '';
     if (brightness > 20) lightingPrompt += ', bright lighting';
     else if (brightness < -20) lightingPrompt += ', dim, moody lighting';
@@ -82,7 +118,7 @@ function App() {
         // Delay setting loading to false to allow image to render if successful
         setTimeout(() => setIsLoading(false), 500);
     }
-  }, [uploadedImage, scenePrompt, selectedModelId, brightness, contrast, warmth]);
+  }, [uploadedImage, scenePrompt, selectedModelId, lighting]);
   
   const handleImageUpload = (file: File, preview: string) => {
     setUploadedImage({ file, preview });
@@ -103,7 +139,6 @@ function App() {
         <ControlPanel
           scenePrompt={scenePrompt}
           setScenePrompt={setScenePrompt}
-          // Fix: Corrected typo from onImageUpload to handleImageUpload
           onImageUpload={handleImageUpload}
           onGenerate={handleGenerate}
           isLoading={isLoading}
@@ -111,12 +146,13 @@ function App() {
           virtualModels={virtualModels}
           selectedModelId={selectedModelId}
           setSelectedModelId={setSelectedModelId}
-          brightness={brightness}
-          setBrightness={setBrightness}
-          contrast={contrast}
-          setContrast={setContrast}
-          warmth={warmth}
-          setWarmth={setWarmth}
+          lighting={lighting}
+          onLightingChange={handleLightingChange}
+          onLightingCommit={commitLightingChange}
+          onUndo={handleUndo}
+          onRedo={handleRedo}
+          canUndo={canUndo}
+          canRedo={canRedo}
         />
         <ResultDisplay
           generatedImage={generatedImage}
